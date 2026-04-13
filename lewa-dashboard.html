@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lewa Smart Conservation Dashboard</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   CSS VARIABLES & RESET
+═══════════════════════════════════════════════════════════ */
+:root {
+  --forest:    #0B3D2E;
+  --forest-mid:#0F4F3A;
+  --forest-lt: #145C44;
+  --earth:     #5C4033;
+  --earth-lt:  #7A5848;
+  --sand:      #D2B48C;
+  --sand-lt:   #E8D5B8;
+  --neon:      #39FF14;
+  --neon-dim:  #27CC0E;
+  --alert:     #FF3B3B;
+  --warn:      #FFB300;
+  --card-bg:   rgba(11,61,46,0.72);
+  --card-border:rgba(57,255,20,0.18);
+  --text-main: #E8F5E9;
+  --text-dim:  #A5C8B0;
+  --text-sand: #D2B48C;
+  --glass:     rgba(15,79,58,0.55);
+  --shadow:    0 4px 32px rgba(0,0,0,0.45);
+  --glow-green:0 0 16px rgba(57,255,20,0.45);
+  --glow-red:  0 0 16px rgba(255,59,59,0.55);
+  --radius:    12px;
+  --radius-sm: 8px;
+  --transition:0.32s ease;
+  /* light mode overrides applied via .light class on body */
+}
+body.light {
+  --forest:    #D8F0E5;
+  --forest-mid:#B8E0CB;
+  --forest-lt: #9ACFB5;
+  --card-bg:   rgba(210,240,225,0.82);
+  --card-border:rgba(11,61,46,0.22);
+  --text-main: #0B3D2E;
+  --text-dim:  #2E6B52;
+  --text-sand: #5C4033;
+  --glass:     rgba(200,235,215,0.7);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:15px}
+body{
+  background: radial-gradient(ellipse at 20% 10%, #0F4F3A 0%, #0B3D2E 55%, #071F17 100%);
+  color:var(--text-main);
+  font-family:'Courier New',Courier,monospace;
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background 0.5s,color 0.5s;
+}
+body.light{background:radial-gradient(ellipse at 20% 10%,#B8E0CB 0%,#D8F0E5 55%,#A0CFB8 100%)}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--forest)}
+::-webkit-scrollbar-thumb{background:var(--neon-dim);border-radius:3px}
+
+/* ═══════════════════════════════════════════════════════════
+   STATUS MARQUEE
+═══════════════════════════════════════════════════════════ */
+#marquee-bar{
+  background:linear-gradient(90deg,var(--forest-mid),#0A2E1F,var(--forest-mid));
+  border-bottom:1px solid var(--card-border);
+  padding:7px 0;
+  overflow:hidden;
+  white-space:nowrap;
+  font-size:0.78rem;
+  color:var(--neon);
+  letter-spacing:0.04em;
+}
+.marquee-inner{
+  display:inline-block;
+  animation:marquee 34s linear infinite;
+}
+@keyframes marquee{from{transform:translateX(100vw)}to{transform:translateX(-100%)}}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════════════ */
+#header{
+  position:relative;
+  padding:28px 24px 18px;
+  background:linear-gradient(135deg,rgba(11,61,46,0.95) 0%,rgba(92,64,51,0.35) 100%);
+  border-bottom:1px solid var(--card-border);
+  overflow:hidden;
+}
+/* scan-line effect */
+#header::after{
+  content:'';
+  position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(57,255,20,0.03) 3px,rgba(57,255,20,0.03) 4px);
+  pointer-events:none;
+}
+.header-inner{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;justify-content:space-between}
+.header-title h1{
+  font-family:'Georgia',serif;
+  font-size:clamp(1.3rem,3vw,2rem);
+  color:var(--neon);
+  text-shadow:var(--glow-green);
+  letter-spacing:0.06em;
+}
+.header-title p{font-size:0.78rem;color:var(--text-sand);margin-top:4px;letter-spacing:0.08em}
+.header-meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px}
+#live-clock{
+  font-size:1.1rem;color:var(--neon);
+  background:rgba(57,255,20,0.08);
+  padding:4px 10px;border-radius:var(--radius-sm);
+  border:1px solid rgba(57,255,20,0.25);
+  font-variant-numeric:tabular-nums;
+}
+.status-indicator{display:flex;align-items:center;gap:6px;font-size:0.8rem}
+.pulse-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--neon);
+  box-shadow:var(--glow-green);
+  animation:pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}
+.header-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.btn{
+  padding:8px 16px;border:none;border-radius:var(--radius-sm);
+  font-family:inherit;font-size:0.78rem;cursor:pointer;
+  transition:var(--transition);letter-spacing:0.05em;font-weight:bold;
+}
+.btn-neon{background:rgba(57,255,20,0.12);color:var(--neon);border:1px solid rgba(57,255,20,0.4)}
+.btn-neon:hover{background:rgba(57,255,20,0.25);box-shadow:var(--glow-green)}
+.btn-alert{background:rgba(255,59,59,0.12);color:var(--alert);border:1px solid rgba(255,59,59,0.4)}
+.btn-alert:hover{background:rgba(255,59,59,0.25);box-shadow:var(--glow-red)}
+.btn-sand{background:rgba(210,180,140,0.12);color:var(--sand);border:1px solid rgba(210,180,140,0.3)}
+.btn-sand:hover{background:rgba(210,180,140,0.22)}
+.btn-sm{padding:5px 11px;font-size:0.72rem}
+
+/* offline badge */
+#mode-badge{
+  font-size:0.7rem;padding:3px 10px;border-radius:20px;
+  background:rgba(57,255,20,0.15);color:var(--neon);
+  border:1px solid rgba(57,255,20,0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ZONE FILTER BAR
+═══════════════════════════════════════════════════════════ */
+#zone-bar{
+  display:flex;flex-wrap:wrap;gap:8px;
+  padding:12px 24px;
+  background:rgba(11,61,46,0.5);
+  border-bottom:1px solid var(--card-border);
+}
+.zone-btn{
+  padding:6px 14px;border:1px solid var(--card-border);border-radius:20px;
+  background:transparent;color:var(--text-dim);cursor:pointer;
+  font-family:inherit;font-size:0.75rem;transition:var(--transition);
+}
+.zone-btn:hover,.zone-btn.active{
+  background:rgba(57,255,20,0.15);color:var(--neon);
+  border-color:rgba(57,255,20,0.45);box-shadow:var(--glow-green);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN GRID LAYOUT
+═══════════════════════════════════════════════════════════ */
+#main-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:18px;
+  padding:20px 24px;
+  max-width:1600px;
+  margin:0 auto;
+}
+/* wide panels span 2 cols on larger screens */
+.panel-wide{grid-column:span 2}
+@media(max-width:720px){.panel-wide{grid-column:span 1}}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD / PANEL BASE
+═══════════════════════════════════════════════════════════ */
+.card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:var(--radius);
+  padding:18px;
+  backdrop-filter:blur(10px);
+  box-shadow:var(--shadow);
+  animation:fadeSlideUp 0.5s ease both;
+  transition:border-color var(--transition),box-shadow var(--transition);
+}
+.card:hover{border-color:rgba(57,255,20,0.35);box-shadow:0 6px 36px rgba(0,0,0,0.5),var(--glow-green)}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.card-title{
+  font-size:0.82rem;letter-spacing:0.12em;color:var(--text-sand);
+  margin-bottom:14px;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px;
+}
+.card-title span{font-size:1rem}
+
+/* ═══════════════════════════════════════════════════════════
+   IMPACT COUNTERS
+═══════════════════════════════════════════════════════════ */
+#impact-counters{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.impact-item{
+  text-align:center;padding:14px 8px;
+  background:rgba(57,255,20,0.06);border:1px solid rgba(57,255,20,0.15);
+  border-radius:var(--radius-sm);
+}
+.impact-num{
+  font-size:1.6rem;font-weight:bold;color:var(--neon);
+  text-shadow:var(--glow-green);display:block;
+}
+.impact-label{font-size:0.68rem;color:var(--text-dim);margin-top:4px;letter-spacing:0.06em}
+
+/* ═══════════════════════════════════════════════════════════
+   WILDLIFE MONITORING
+═══════════════════════════════════════════════════════════ */
+.view-toggle{display:flex;gap:6px;margin-bottom:12px}
+.view-btn{padding:5px 12px;font-size:0.72rem;border-radius:20px;cursor:pointer;
+  font-family:inherit;transition:var(--transition);
+  background:transparent;border:1px solid var(--card-border);color:var(--text-dim)}
+.view-btn.active{background:rgba(57,255,20,0.15);color:var(--neon);border-color:rgba(57,255,20,0.4)}
+
+/* Animal cards */
+.animal-card{
+  display:flex;align-items:center;gap:12px;
+  padding:10px;margin-bottom:8px;
+  background:rgba(11,61,46,0.45);border:1px solid var(--card-border);
+  border-radius:var(--radius-sm);transition:var(--transition);cursor:default;
+}
+.animal-card:hover{background:rgba(11,61,46,0.7);box-shadow:var(--glow-green)}
+.animal-icon{font-size:1.5rem;width:36px;text-align:center}
+.animal-info{flex:1}
+.animal-name{font-size:0.85rem;font-weight:bold;color:var(--text-main)}
+.animal-meta{font-size:0.7rem;color:var(--text-dim);margin-top:2px}
+.status-badge{
+  padding:3px 9px;border-radius:20px;font-size:0.65rem;font-weight:bold;
+  letter-spacing:0.06em;
+}
+.status-Safe{background:rgba(57,255,20,0.15);color:var(--neon);border:1px solid rgba(57,255,20,0.3)}
+.status-Moving{background:rgba(255,179,0,0.15);color:var(--warn);border:1px solid rgba(255,179,0,0.3)}
+.status-Alert{background:rgba(255,59,59,0.15);color:var(--alert);border:1px solid rgba(255,59,59,0.3);
+  animation:alertPulse 1.2s ease-in-out infinite}
+@keyframes alertPulse{0%,100%{box-shadow:0 0 6px rgba(255,59,59,0.4)}50%{box-shadow:0 0 14px rgba(255,59,59,0.9)}}
+
+.battery-bar{height:4px;border-radius:2px;background:rgba(255,255,255,0.1);margin-top:4px;width:80px;overflow:hidden}
+.battery-fill{height:100%;border-radius:2px;transition:width 0.5s}
+.batt-ok{background:var(--neon)}
+.batt-warn{background:var(--warn)}
+.batt-low{background:var(--alert);animation:alertPulse 1s infinite}
+
+/* MAP VIEW */
+#map-view{display:none}
+.map-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:6px;aspect-ratio:1.4;
+}
+.map-zone{
+  border:1px solid var(--card-border);border-radius:6px;
+  background:rgba(11,61,46,0.4);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;padding:8px;gap:4px;
+  font-size:0.68rem;color:var(--text-dim);text-align:center;
+}
+.map-zone-label{font-size:0.65rem;letter-spacing:0.07em;color:var(--text-sand)}
+.map-dot{
+  width:14px;height:14px;border-radius:50%;
+  display:inline-block;margin:1px;
+}
+.dot-Safe{background:var(--neon);box-shadow:0 0 6px rgba(57,255,20,0.7)}
+.dot-Moving{background:var(--warn);box-shadow:0 0 6px rgba(255,179,0,0.7)}
+.dot-Alert{
+  background:var(--alert);box-shadow:0 0 8px rgba(255,59,59,0.9);
+  animation:dotPulse 1s ease-in-out infinite;
+}
+@keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.7}}
+
+/* ═══════════════════════════════════════════════════════════
+   IOT SENSOR
+═══════════════════════════════════════════════════════════ */
+.sensor-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 0;border-bottom:1px solid rgba(57,255,20,0.08);
+}
+.sensor-row:last-child{border-bottom:none}
+.sensor-label{font-size:0.75rem;color:var(--text-dim)}
+.sensor-value{font-size:1rem;color:var(--neon);font-weight:bold;text-shadow:var(--glow-green)}
+.sensor-value.updating{animation:sensorFlash 0.4s ease}
+@keyframes sensorFlash{0%{opacity:1}50%{opacity:0.3;text-shadow:0 0 20px var(--neon)}100%{opacity:1}}
+#spin-icon{display:none;animation:spin 0.8s linear infinite;color:var(--neon);font-size:0.9rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════════════════════════════════════════════════════════
+   INCIDENTS
+═══════════════════════════════════════════════════════════ */
+.incident-item{
+  padding:10px;margin-bottom:8px;border-radius:var(--radius-sm);
+  border-left:3px solid transparent;
+  background:rgba(11,61,46,0.4);
+  transition:var(--transition);
+}
+.incident-item.sev-High{border-left-color:var(--alert);animation:incidentGlow 2s ease-in-out infinite}
+.incident-item.sev-Medium{border-left-color:var(--warn)}
+.incident-item.sev-Low{border-left-color:var(--neon-dim)}
+.incident-item.acknowledged{opacity:0.45;animation:none}
+@keyframes incidentGlow{0%,100%{box-shadow:none}50%{box-shadow:-2px 0 12px rgba(255,59,59,0.35)}}
+.incident-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.incident-type{font-size:0.82rem;font-weight:bold}
+.severity-tag{
+  font-size:0.62rem;padding:2px 7px;border-radius:20px;letter-spacing:0.06em;font-weight:bold;
+}
+.sev-High .severity-tag{background:rgba(255,59,59,0.2);color:var(--alert);border:1px solid rgba(255,59,59,0.35)}
+.sev-Medium .severity-tag{background:rgba(255,179,0,0.15);color:var(--warn);border:1px solid rgba(255,179,0,0.3)}
+.sev-Low .severity-tag{background:rgba(57,255,20,0.1);color:var(--neon-dim);border:1px solid rgba(57,255,20,0.25)}
+.incident-meta{font-size:0.68rem;color:var(--text-dim);margin:4px 0}
+.ack-btn{
+  font-size:0.65rem;padding:3px 8px;border-radius:4px;cursor:pointer;
+  font-family:inherit;background:rgba(57,255,20,0.1);color:var(--neon);
+  border:1px solid rgba(57,255,20,0.25);transition:var(--transition);
+}
+.ack-btn:hover{background:rgba(57,255,20,0.22)}
+
+/* Timeline slider */
+.timeline-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.timeline-row label{font-size:0.72rem;color:var(--text-dim)}
+#timeline-slider{accent-color:var(--neon);width:120px}
+#timeline-label{font-size:0.72rem;color:var(--neon)}
+
+/* ═══════════════════════════════════════════════════════════
+   CANVAS CHARTS
+═══════════════════════════════════════════════════════════ */
+canvas{width:100%!important;border-radius:var(--radius-sm)}
+
+/* ═══════════════════════════════════════════════════════════
+   COMMUNITY REPORTS
+═══════════════════════════════════════════════════════════ */
+.report-item{
+  padding:9px 10px;margin-bottom:7px;
+  background:rgba(11,61,46,0.4);border:1px solid var(--card-border);
+  border-radius:var(--radius-sm);
+}
+.report-item.urgent{border-color:rgba(255,59,59,0.35)}
+.report-msg{font-size:0.8rem;color:var(--text-main)}
+.report-meta{font-size:0.67rem;color:var(--text-dim);margin-top:3px}
+.urgent-tag{color:var(--alert);font-size:0.65rem;margin-left:6px}
+
+/* form */
+.form-group{margin-bottom:10px}
+.form-group label{display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;background:rgba(11,61,46,0.6);border:1px solid var(--card-border);
+  color:var(--text-main);font-family:inherit;font-size:0.78rem;
+  padding:7px 10px;border-radius:var(--radius-sm);outline:none;
+  transition:var(--transition);
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+  border-color:rgba(57,255,20,0.5);box-shadow:var(--glow-green)
+}
+.form-group textarea{resize:vertical;min-height:60px}
+
+/* ═══════════════════════════════════════════════════════════
+   TECHHUB PROJECTS
+═══════════════════════════════════════════════════════════ */
+.project-item{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid rgba(57,255,20,0.07);
+}
+.project-item:last-child{border-bottom:none}
+.project-icon{font-size:1.1rem;width:28px;text-align:center}
+.project-name{flex:1;font-size:0.8rem}
+.project-status{font-size:0.65rem;padding:2px 8px;border-radius:20px;letter-spacing:0.05em}
+.ps-Deployed{background:rgba(57,255,20,0.12);color:var(--neon);border:1px solid rgba(57,255,20,0.3)}
+.ps-Testing{background:rgba(255,179,0,0.12);color:var(--warn);border:1px solid rgba(255,179,0,0.3)}
+.ps-Maintenance{background:rgba(255,59,59,0.1);color:var(--alert);border:1px solid rgba(255,59,59,0.25)}
+
+/* ═══════════════════════════════════════════════════════════
+   TRAINING / COLLAPSIBLE
+═══════════════════════════════════════════════════════════ */
+.collapsible-item{border-bottom:1px solid var(--card-border)}
+.collapsible-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;cursor:pointer;font-size:0.8rem;color:var(--text-main);
+  transition:color var(--transition);
+}
+.collapsible-header:hover{color:var(--neon)}
+.collapsible-arrow{transition:transform 0.3s;color:var(--text-dim)}
+.collapsible-header.open .collapsible-arrow{transform:rotate(180deg)}
+.collapsible-body{
+  max-height:0;overflow:hidden;transition:max-height 0.4s ease,padding 0.3s;
+  font-size:0.75rem;color:var(--text-dim);line-height:1.6;
+}
+.collapsible-body.open{max-height:200px;padding-bottom:10px}
+
+/* ═══════════════════════════════════════════════════════════
+   DRONE FEED
+═══════════════════════════════════════════════════════════ */
+#drone-canvas{
+  width:100%;height:160px;border-radius:var(--radius-sm);
+  background:rgba(0,0,0,0.45);border:1px solid var(--card-border);
+  display:block;
+}
+.drone-meta{display:flex;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:6px}
+.drone-meta span{font-size:0.72rem;color:var(--text-dim)}
+.drone-meta strong{color:var(--neon)}
+
+/* ═══════════════════════════════════════════════════════════
+   RANGER DISPATCH
+═══════════════════════════════════════════════════════════ */
+.ranger-item{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid rgba(57,255,20,0.07);
+}
+.ranger-item:last-child{border-bottom:none}
+.ranger-icon{font-size:1.1rem}
+.ranger-info{flex:1}
+.ranger-name{font-size:0.82rem;font-weight:bold}
+.ranger-meta{font-size:0.68rem;color:var(--text-dim)}
+.ranger-status{font-size:0.65rem;padding:2px 7px;border-radius:20px}
+.rs-Patrolling{background:rgba(57,255,20,0.12);color:var(--neon);border:1px solid rgba(57,255,20,0.28)}
+.rs-Standby{background:rgba(210,180,140,0.12);color:var(--sand);border:1px solid rgba(210,180,140,0.25)}
+.rs-Responding{background:rgba(255,59,59,0.1);color:var(--alert);border:1px solid rgba(255,59,59,0.25);
+  animation:alertPulse 1.4s infinite}
+#comms-area{
+  margin-top:14px;border-top:1px solid var(--card-border);padding-top:12px;
+}
+.comms-title{font-size:0.72rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.06em}
+.preset-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.preset-btn{
+  font-size:0.65rem;padding:4px 9px;border-radius:4px;cursor:pointer;
+  font-family:inherit;background:rgba(57,255,20,0.08);color:var(--text-dim);
+  border:1px solid var(--card-border);transition:var(--transition);
+}
+.preset-btn:hover{color:var(--neon);border-color:rgba(57,255,20,0.35)}
+#comms-log{
+  max-height:80px;overflow-y:auto;font-size:0.68rem;color:var(--text-dim);
+  background:rgba(0,0,0,0.2);padding:6px 8px;border-radius:var(--radius-sm);
+  border:1px solid var(--card-border);
+}
+.comms-msg{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.comms-msg:last-child{border-bottom:none}
+.comms-msg .ts{color:var(--neon);margin-right:6px}
+
+/* ═══════════════════════════════════════════════════════════
+   BATTERY & DEVICE HEALTH
+═══════════════════════════════════════════════════════════ */
+.device-item{
+  display:flex;align-items:center;gap:10px;padding:8px 0;
+  border-bottom:1px solid rgba(57,255,20,0.07);
+}
+.device-item:last-child{border-bottom:none}
+.device-name{flex:1;font-size:0.78rem}
+.signal-bars{font-size:0.9rem;margin-right:4px}
+.device-batt{font-size:0.72rem}
+.device-batt.warn{color:var(--warn)}
+.device-batt.low{color:var(--alert);animation:alertPulse 1s infinite}
+.device-batt.ok{color:var(--neon)}
+
+/* ═══════════════════════════════════════════════════════════
+   WEATHER
+═══════════════════════════════════════════════════════════ */
+.weather-main{font-size:1.4rem;color:var(--neon);font-weight:bold;text-shadow:var(--glow-green)}
+.weather-sub{font-size:0.75rem;color:var(--text-dim);margin-top:4px}
+.weather-advisory{
+  margin-top:10px;padding:8px 10px;border-radius:var(--radius-sm);
+  background:rgba(255,179,0,0.08);border:1px solid rgba(255,179,0,0.2);
+  font-size:0.72rem;color:var(--warn);
+}
+.forecast-row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.forecast-hour{
+  text-align:center;padding:6px 10px;border-radius:var(--radius-sm);
+  background:rgba(11,61,46,0.5);border:1px solid var(--card-border);
+  font-size:0.68rem;min-width:56px;
+}
+.forecast-hour .fh-time{color:var(--text-sand);display:block}
+.forecast-hour .fh-icon{font-size:1rem;display:block;margin:3px 0}
+.forecast-hour .fh-temp{color:var(--neon)}
+
+/* ═══════════════════════════════════════════════════════════
+   SYSTEM HEALTH FOOTER
+═══════════════════════════════════════════════════════════ */
+#sys-footer{
+  border-top:1px solid var(--card-border);
+  background:rgba(7,31,23,0.8);
+  padding:0 24px;
+}
+.sys-footer-toggle{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 0;cursor:pointer;font-size:0.78rem;color:var(--text-dim);
+  justify-content:space-between;
+}
+.sys-footer-toggle:hover{color:var(--neon)}
+#sys-footer-body{
+  max-height:0;overflow:hidden;transition:max-height 0.4s ease;
+}
+#sys-footer-body.open{max-height:200px}
+.sys-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;padding:12px 0}
+.sys-item{font-size:0.72rem}
+.sys-item label{color:var(--text-dim);display:block;margin-bottom:2px}
+.sys-item span{color:var(--neon)}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════════════ */
+#modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);
+  z-index:1000;align-items:center;justify-content:center;
+}
+#modal-overlay.active{display:flex}
+.modal-box{
+  background:var(--forest-mid);border:1px solid var(--card-border);
+  border-radius:var(--radius);padding:24px;max-width:480px;width:90%;
+  box-shadow:var(--shadow);animation:fadeSlideUp 0.3s ease;
+}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-header h3{font-size:0.95rem;color:var(--neon)}
+.modal-close{cursor:pointer;color:var(--text-dim);font-size:1.2rem;line-height:1;
+  background:none;border:none;font-family:inherit;transition:color var(--transition)}
+.modal-close:hover{color:var(--alert)}
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+═══════════════════════════════════════════════════════════ */
+#toast-container{
+  position:fixed;top:16px;right:16px;z-index:2000;
+  display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast{
+  padding:10px 16px;border-radius:var(--radius-sm);
+  font-size:0.75rem;font-family:inherit;
+  box-shadow:var(--shadow);
+  animation:toastIn 0.3s ease,toastOut 0.4s ease 3.6s forwards;
+  pointer-events:all;max-width:280px;
+  border:1px solid;
+}
+.toast-alert{background:rgba(20,10,10,0.95);color:var(--alert);border-color:rgba(255,59,59,0.4);box-shadow:var(--glow-red)}
+.toast-info{background:rgba(10,20,14,0.95);color:var(--neon);border-color:rgba(57,255,20,0.3);box-shadow:var(--glow-green)}
+.toast-warn{background:rgba(20,15,5,0.95);color:var(--warn);border-color:rgba(255,179,0,0.3)}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateX(40px)}}
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN OVERLAY
+═══════════════════════════════════════════════════════════ */
+#admin-panel{
+  display:none;position:fixed;bottom:20px;left:20px;z-index:900;
+  background:rgba(7,31,23,0.95);border:1px solid rgba(255,179,0,0.4);
+  border-radius:var(--radius);padding:14px;font-size:0.72rem;
+  box-shadow:0 0 20px rgba(255,179,0,0.2);
+}
+#admin-panel.visible{display:block}
+#admin-panel h4{color:var(--warn);margin-bottom:10px;letter-spacing:0.08em;font-size:0.75rem}
+#admin-panel .btn{display:block;width:100%;margin-bottom:6px;font-size:0.7rem}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════ */
+@media(max-width:600px){
+  #main-grid{padding:12px;gap:12px}
+  #header{padding:16px 12px 12px}
+  #zone-bar{padding:8px 12px}
+  .header-title h1{font-size:1.1rem}
+  #impact-counters{grid-template-columns:1fr 1fr}
+  .map-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════════════════════════════════════
+     STATUS MARQUEE
+═════════════════════════════════════════════════════ -->
+<div id="marquee-bar">
+  <div class="marquee-inner" id="marquee-text">
+    🐘 Elephant #E21 entered safe zone &nbsp;|&nbsp; 🚁 Drone 03 battery: 67% &nbsp;|&nbsp;
+    🦏 Rhino #R07 — Alert in East Zone &nbsp;|&nbsp; 📡 All sensors operational &nbsp;|&nbsp;
+    🌿 Lewa Smart Dashboard — LIVE &nbsp;|&nbsp; 👮 Team Charlie responding to East Zone &nbsp;|&nbsp;
+    💧 Water sensor N4 signal weak &nbsp;|&nbsp; 🌡️ Temp: 28.4°C — Humidity: 62%
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════
+     HEADER
+═════════════════════════════════════════════════════ -->
+<div id="header">
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>🌿 Lewa Smart Conservation Dashboard</h1>
+      <p>Technology for Wildlife Protection &amp; Community Impact</p>
+      <div class="header-meta">
+        <div id="live-clock">--:--:--</div>
+        <div class="status-indicator">
+          <div class="pulse-dot"></div>
+          <span style="font-size:0.75rem;color:var(--text-dim)">System Status: Operational</span>
+        </div>
+        <div id="mode-badge">📡 LIVE DATA</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <div class="header-buttons">
+        <button class="btn btn-neon btn-sm" onclick="exportReport()">📥 Export CSV</button>
+        <button class="btn btn-sand btn-sm" onclick="openAnalyticsModal()">📊 Analytics &amp; Reports</button>
+        <button class="btn btn-sand btn-sm" id="theme-toggle" onclick="toggleTheme()">🌙 Dark/Light</button>
+        <button class="btn btn-sand btn-sm" id="sound-toggle" onclick="toggleSound()">🔇 Sound: OFF</button>
+      </div>
+      <div style="font-size:0.65rem;color:var(--text-dim);text-align:right">
+        Press <kbd style="background:rgba(57,255,20,0.12);padding:1px 5px;border-radius:3px;color:var(--neon)">Shift+A</kbd> for Admin Mode
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════
+     ZONE FILTER BAR
+═════════════════════════════════════════════════════ -->
+<div id="zone-bar">
+  <span style="font-size:0.72rem;color:var(--text-dim);align-self:center">🧭 Filter Zone:</span>
+  <button class="zone-btn active" data-zone="All" onclick="setZone('All',this)">All Zones</button>
+  <button class="zone-btn" data-zone="North" onclick="setZone('North',this)">🌲 North</button>
+  <button class="zone-btn" data-zone="East" onclick="setZone('East',this)">🌅 East</button>
+  <button class="zone-btn" data-zone="South" onclick="setZone('South',this)">🏔️ South</button>
+  <button class="zone-btn" data-zone="West" onclick="setZone('West',this)">🌾 West</button>
+  <button class="zone-btn" data-zone="Core" onclick="setZone('Core',this)">💚 Core Area</button>
+</div>
+
+<!-- ═════════════════════════════════════════════════════
+     MAIN GRID
+═════════════════════════════════════════════════════ -->
+<div id="main-grid">
+
+  <!-- ── IMPACT COUNTERS ── -->
+  <div class="card panel-wide" id="impact-card">
+    <div class="card-title"><span>📈</span> Conservation Impact</div>
+    <div id="impact-counters">
+      <div class="impact-item">
+        <span class="impact-num" data-target="34" id="cnt-1">0</span>
+        <div class="impact-label">% Poaching Incidents Reduced (MoM)</div>
+      </div>
+      <div class="impact-item">
+        <span class="impact-num" data-target="62000" id="cnt-2">0</span>
+        <div class="impact-label">Acres Protected</div>
+      </div>
+      <div class="impact-item">
+        <span class="impact-num" data-target="1247" id="cnt-3">0</span>
+        <div class="impact-label">Community Members Trained</div>
+      </div>
+      <div class="impact-item">
+        <span class="impact-num" data-target="24" id="cnt-4">0</span>
+        <div class="impact-label">Active Collars Deployed</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── WILDLIFE MONITORING ── -->
+  <div class="card panel-wide" id="wildlife-card">
+    <div class="card-title"><span>🐾</span> Wildlife Monitoring</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div class="view-toggle">
+        <button class="view-btn active" id="card-view-btn" onclick="setView('card')">🃏 Card View</button>
+        <button class="view-btn" id="map-view-btn" onclick="setView('map')">🗺️ Map View</button>
+      </div>
+    </div>
+    <div id="card-view"></div>
+    <div id="map-view"></div>
+  </div>
+
+  <!-- ── IOT SENSOR ── -->
+  <div class="card" id="sensor-card">
+    <div class="card-title">
+      <span>📡</span> IoT Sensor Data
+      <span id="spin-icon">↻</span>
+    </div>
+    <div id="sensor-rows"></div>
+    <div style="font-size:0.65rem;color:var(--text-dim);margin-top:8px" id="last-sync-label">Last sync: just now</div>
+  </div>
+
+  <!-- ── INCIDENTS ── -->
+  <div class="card panel-wide" id="incidents-card">
+    <div class="card-title"><span>🚨</span> Incidents &amp; Alerts</div>
+    <div class="timeline-row">
+      <label>📅 Timeline:</label>
+      <input type="range" id="timeline-slider" min="0" max="2" value="0" step="1" oninput="updateTimeline(this.value)">
+      <span id="timeline-label">Past 24 Hours</span>
+      <span id="alert-count-badge" style="margin-left:auto;font-size:0.68rem;color:var(--alert)"></span>
+    </div>
+    <div id="incidents-list"></div>
+  </div>
+
+  <!-- ── CHARTS ── -->
+  <div class="card panel-wide" id="charts-card">
+    <div class="card-title"><span>📊</span> Data Visualization</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px">
+      <div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Animal Movement (24h)</div>
+        <canvas id="movement-chart" height="120"></canvas>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Incidents by Zone</div>
+        <canvas id="incidents-chart" height="120"></canvas>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Poaching Risk Index</div>
+        <canvas id="risk-chart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMMUNITY REPORTS ── -->
+  <div class="card" id="community-card">
+    <div class="card-title"><span>👨🏾‍🌾</span> Community Reports</div>
+    <div id="community-list"></div>
+    <button class="btn btn-alert btn-sm" style="margin-top:10px;width:100%" onclick="openReportForm()">🚨 Report Incident</button>
+    <div id="report-form" style="display:none;margin-top:12px">
+      <div class="form-group">
+        <label>What happened?</label>
+        <textarea id="rep-what" rows="2" placeholder="Describe the incident..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Where?</label>
+        <input id="rep-where" type="text" placeholder="Location / zone">
+      </div>
+      <div class="form-group">
+        <label>Urgency</label>
+        <select id="rep-urgency">
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+      <button class="btn btn-neon btn-sm" onclick="submitReport()">✔ Submit Report</button>
+      <button class="btn btn-sand btn-sm" onclick="document.getElementById('report-form').style.display='none'">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ── DRONE FEED ── -->
+  <div class="card" id="drone-card">
+    <div class="card-title"><span>🚁</span> Live Drone Feed (Drone 03)</div>
+    <canvas id="drone-canvas" height="160"></canvas>
+    <div class="drone-meta">
+      <span>Status: <strong>Airborne</strong></span>
+      <span>Battery: <strong id="drone-batt">67%</strong></span>
+      <span>Flight: <strong id="drone-flight">15 min</strong></span>
+    </div>
+  </div>
+
+  <!-- ── WEATHER ── -->
+  <div class="card" id="weather-card">
+    <div class="card-title"><span>☁️</span> Weather Forecast</div>
+    <div class="weather-main" id="weather-temp">28.4°C ⛅</div>
+    <div class="weather-sub" id="weather-desc">Partly cloudy · Wind 12 km/h NE</div>
+    <div class="weather-advisory" id="weather-advisory">
+      ⚠️ Light rain expected 14:00–16:00 — reduced patrol visibility
+    </div>
+    <div class="forecast-row" id="forecast-row"></div>
+  </div>
+
+  <!-- ── RANGER DISPATCH ── -->
+  <div class="card panel-wide" id="ranger-card">
+    <div class="card-title"><span>👨‍✈️</span> Ranger Dispatch System</div>
+    <div id="ranger-list"></div>
+    <div id="comms-area">
+      <div class="comms-title">📻 TWO-WAY COMMUNICATIONS</div>
+      <div class="preset-btns" id="preset-btns"></div>
+      <div id="comms-log"></div>
+    </div>
+  </div>
+
+  <!-- ── DEVICE HEALTH ── -->
+  <div class="card" id="device-card">
+    <div class="card-title"><span>🔋</span> Battery &amp; Device Health</div>
+    <div id="device-list"></div>
+  </div>
+
+  <!-- ── TECHHUB PROJECTS ── -->
+  <div class="card" id="techhub-card">
+    <div class="card-title"><span>🧪</span> Techhub Projects</div>
+    <div id="projects-list"></div>
+  </div>
+
+  <!-- ── TRAINING ── -->
+  <div class="card" id="training-card">
+    <div class="card-title"><span>📚</span> Training &amp; Documentation</div>
+    <div id="training-list"></div>
+  </div>
+
+</div><!-- /main-grid -->
+
+<!-- ═════════════════════════════════════════════════════
+     SYSTEM HEALTH FOOTER
+═════════════════════════════════════════════════════ -->
+<div id="sys-footer">
+  <div class="sys-footer-toggle" onclick="toggleSysFooter()">
+    <span>⚙️ System Health</span>
+    <span id="sys-arrow">▲</span>
+  </div>
+  <div id="sys-footer-body">
+    <div class="sys-grid">
+      <div class="sys-item"><label>API Status</label><span>✅ All systems operational</span></div>
+      <div class="sys-item"><label>Sensor Network Coverage</label><span id="coverage-val">94%</span></div>
+      <div class="sys-item"><label>Last Data Sync</label><span id="last-sync-footer">2 seconds ago</span></div>
+      <div class="sys-item"><label>Active Alerts</label><span id="active-alerts-count">—</span></div>
+    </div>
+    <button class="btn btn-sand btn-sm" style="margin-bottom:12px" onclick="triggerTestAlert()">🧪 Test Alert</button>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════
+     MODAL — ANALYTICS
+═════════════════════════════════════════════════════ -->
+<div id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📊 Analytics &amp; Reports</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-content" style="font-size:0.78rem;color:var(--text-dim);line-height:1.8"></div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════
+     TOAST CONTAINER
+═════════════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ═════════════════════════════════════════════════════
+     ADMIN PANEL
+═════════════════════════════════════════════════════ -->
+<div id="admin-panel">
+  <h4>⚠️ ADMIN OVERRIDE</h4>
+  <button class="btn btn-alert btn-sm" onclick="adminSimulatePoaching()">🔴 Simulate Poaching Alert</button>
+  <button class="btn btn-warn btn-sm" onclick="adminSimulateSensorFail()" style="color:var(--warn);border-color:rgba(255,179,0,0.3);background:rgba(255,179,0,0.08)">📡 Simulate Sensor Failure</button>
+  <button class="btn btn-sand btn-sm" onclick="adminResetData()">🔄 Reset All Data</button>
+</div>
+
+<!-- ═════════════════════════════════════════════════════
+     JAVASCRIPT
+═════════════════════════════════════════════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════
+// SEED DATA
+// ═══════════════════════════════════════════════════════
+
+const SEED_ANIMALS = [
+  { id:"E21", emoji:"🐘", name:"Elephant #E21", status:"Safe",    zone:"North", battery:72, lastTx:"2 mins ago" },
+  { id:"R07", emoji:"🦏", name:"Rhino #R07",    status:"Alert",   zone:"East",  battery:34, lastTx:"15 mins ago" },
+  { id:"L12", emoji:"🦁", name:"Lion #L12",     status:"Moving",  zone:"Core",  battery:91, lastTx:"1 min ago" },
+  { id:"B04", emoji:"🐃", name:"Buffalo #B04",  status:"Safe",    zone:"South", battery:58, lastTx:"5 mins ago" },
+  { id:"G09", emoji:"🦒", name:"Giraffe #G09",  status:"Moving",  zone:"West",  battery:83, lastTx:"3 mins ago" }
+];
+
+const SEED_INCIDENTS = [
+  { id:1, type:"Fence Breach",       zone:"North", severity:"High",   time:"5 mins ago",  acknowledged:false, source:"System" },
+  { id:2, type:"Animal Distress",    zone:"Core",  severity:"Medium", time:"22 mins ago", acknowledged:false, source:"Sensor" },
+  { id:3, type:"Poaching Alert",     zone:"East",  severity:"High",   time:"1 hour ago",  acknowledged:true,  source:"System" },
+  { id:4, type:"Community Report",   zone:"South", severity:"Low",    time:"2 hours ago", acknowledged:false, source:"Community" }
+];
+
+const SEED_COMMUNITY = [
+  { id:1, message:"Elephant near farm",       location:"Isiolo",       timestamp:"1 hour ago",    urgent:false },
+  { id:2, message:"Water shortage reported",  location:"Ngare Ndare",  timestamp:"3 hours ago",   urgent:true  },
+  { id:3, message:"Strange vehicle spotted",  location:"Lewa border",  timestamp:"30 mins ago",   urgent:true  }
+];
+
+const SEED_RANGERS = [
+  { name:"Team Alpha",   status:"Patrolling", zone:"North", lastContact:"2 mins ago" },
+  { name:"Team Bravo",   status:"Standby",    zone:"Camp",  lastContact:"10 mins ago" },
+  { name:"Team Charlie", status:"Responding", zone:"East",  lastContact:"Just now" }
+];
+
+const SEED_PROJECTS = [
+  { icon:"📟", name:"Smart Collars",            status:"Deployed" },
+  { icon:"🚁", name:"Drone Surveillance",       status:"Testing" },
+  { icon:"💧", name:"Water Monitoring Sensors", status:"Maintenance" },
+  { icon:"📷", name:"AI Camera Traps",          status:"Deployed" }
+];
+
+const TRAINING_DOCS = [
+  { title:"📍 How to Use GPS Tracker", body:"Power on the device and wait for satellite lock (approx 90s). Assign the animal ID via the collar app. Ensure battery is above 20% before field deployment." },
+  { title:"📋 How to Report Incidents", body:"Use the Community Report button for urgent threats. Include: what, where, and urgency level. Photos can be attached via email to ops@lewa.org." },
+  { title:"🛡️ Ranger Safety Protocols", body:"Always patrol in pairs. Carry radio and emergency beacon. Check in every 30 minutes. In case of poaching contact, do NOT engage — report immediately and withdraw to safe distance." }
+];
+
+const WEATHER_FORECASTS = [
+  { time:"Now",  icon:"⛅", temp:"28°C" },
+  { time:"12:00",icon:"☀️", temp:"30°C" },
+  { time:"14:00",icon:"🌦️", temp:"26°C" },
+  { time:"16:00",icon:"🌧️", temp:"24°C" },
+  { time:"18:00",icon:"⛅", temp:"23°C" },
+  { time:"20:00",icon:"🌙", temp:"21°C" }
+];
+
+const PRESET_COMMS = [
+  "Check fence Zone B",
+  "Poaching reported near river",
+  "Request backup",
+  "All clear — return to camp",
+  "Medical support needed"
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let animals   = JSON.parse(JSON.stringify(SEED_ANIMALS));
+let incidents = JSON.parse(JSON.stringify(SEED_INCIDENTS));
+let community = JSON.parse(JSON.stringify(SEED_COMMUNITY));
+
+// Load acknowledged states from localStorage
+const storedAck = JSON.parse(localStorage.getItem('lewa_ack') || '{}');
+incidents.forEach(i => { if(storedAck[i.id]) i.acknowledged = true; });
+
+let currentZone = 'All';
+let currentView = localStorage.getItem('lewa_view') || 'card';
+let soundEnabled = false;
+let adminMode = false;
+let droneBattery = 67;
+let droneFlightTime = 15;
+let sensorData = { temp:28.4, humidity:62, gps:97, movement:"All clear" };
+let syncCounter = 0;
+let incidentIdCounter = 10;
+let communityIdCounter = 10;
+let droneAngle = 0;
+let droneRadius = 55;
+let sensorFailureActive = false;
+
+const TIMELINE_LABELS = ["Past 24 Hours","Past 7 Days","Past 30 Days"];
+let currentTimeline = 0;
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  renderWildlife();
+  renderSensors();
+  renderIncidents();
+  renderCommunity();
+  renderRangers();
+  renderDevices();
+  renderProjects();
+  renderTraining();
+  renderWeather();
+  animateImpactCounters();
+  drawMovementChart();
+  drawIncidentsChart();
+  drawRiskChart();
+  startDroneCanvas();
+  startSimulation();
+
+  // Restore view
+  setView(currentView);
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', handleKeyboard);
+});
+
+// ═══════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════
+function startClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('live-clock').textContent = now.toLocaleTimeString('en-GB');
+    syncCounter++;
+    document.getElementById('last-sync-footer').textContent = syncCounter + ' seconds ago';
+    document.getElementById('last-sync-label').textContent = 'Last sync: ' + syncCounter + 's ago';
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER WILDLIFE
+// ═══════════════════════════════════════════════════════
+function renderWildlife() {
+  const filtered = currentZone === 'All' ? animals : animals.filter(a => a.zone === currentZone);
+  const cardEl = document.getElementById('card-view');
+  const mapEl  = document.getElementById('map-view');
+
+  // Card View
+  if (!filtered.length) {
+    cardEl.innerHTML = `<div style="color:var(--text-dim);font-size:0.78rem;padding:10px">No animals in selected zone.</div>`;
+  } else {
+    cardEl.innerHTML = filtered.map(a => {
+      const battClass = a.battery < 20 ? 'batt-low' : a.battery < 30 ? 'batt-warn' : 'batt-ok';
+      const battWarn  = a.battery < 30 ? `<span style="color:var(--alert);font-size:0.6rem"> ⚠️ LOW</span>` : '';
+      return `
+        <div class="animal-card">
+          <div class="animal-icon">${a.emoji}</div>
+          <div class="animal-info">
+            <div class="animal-name">${a.name}</div>
+            <div class="animal-meta">📍 ${a.zone} Zone &nbsp;·&nbsp; 🕐 ${a.lastTx}</div>
+            <div class="battery-bar"><div class="battery-fill ${battClass}" style="width:${a.battery}%"></div></div>
+            <div style="font-size:0.62rem;color:var(--text-dim);margin-top:2px">🔋 ${a.battery}%${battWarn}</div>
+          </div>
+          <div class="status-badge status-${a.status}">${a.status}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // Map View
+  const zones = ['North','East','Core','West','South','Camp'];
+  const zoneEmoji = {North:'🌲',East:'🌅',Core:'💚',West:'🌾',South:'🏔️',Camp:'🏕️'};
+  mapEl.innerHTML = `<div class="map-grid">` +
+    zones.map(z => {
+      const dots = animals.filter(a => a.zone === z).map(a =>
+        `<div class="map-dot dot-${a.status}" title="${a.name}"></div>`
+      ).join('');
+      return `<div class="map-zone">${dots || ''}<div class="map-zone-label">${zoneEmoji[z]||''} ${z}</div></div>`;
+    }).join('') + `</div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER SENSORS
+// ═══════════════════════════════════════════════════════
+function renderSensors() {
+  const rows = [
+    { label:"🌡️ Temperature",      value: sensorFailureActive ? "OFFLINE" : `${sensorData.temp.toFixed(1)}°C`, id:"s-temp" },
+    { label:"💧 Humidity",         value: `${sensorData.humidity.toFixed(0)}%`,                                id:"s-hum" },
+    { label:"📶 GPS Signal",       value: `${sensorData.gps}%`,                                               id:"s-gps" },
+    { label:"🚶 Movement Detect",  value: sensorData.movement,                                                id:"s-mov" },
+  ];
+  document.getElementById('sensor-rows').innerHTML = rows.map(r =>
+    `<div class="sensor-row">
+      <div class="sensor-label">${r.label}</div>
+      <div class="sensor-value" id="${r.id}">${r.value}</div>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER INCIDENTS
+// ═══════════════════════════════════════════════════════
+function renderIncidents() {
+  let list = [...incidents];
+  if(currentZone !== 'All') list = list.filter(i => i.zone === currentZone);
+
+  // Sort: unacknowledged High first, then Medium, Low
+  const sev = {High:0,Medium:1,Low:2};
+  list.sort((a,b) => {
+    if(a.acknowledged !== b.acknowledged) return a.acknowledged ? 1:-1;
+    return sev[a.severity] - sev[b.severity];
+  });
+
+  const unacked = list.filter(i => !i.acknowledged).length;
+  document.getElementById('active-alerts-count').textContent = unacked;
+  document.getElementById('alert-count-badge').textContent = unacked ? `⚡ ${unacked} active` : '';
+
+  document.getElementById('incidents-list').innerHTML = list.map(inc => {
+    const ackLabel = inc.acknowledged ? '✔ Acknowledged' : 'Acknowledge';
+    const srcTag   = inc.source === 'Community' ? `<span style="font-size:0.6rem;color:var(--sand);margin-left:6px">Community</span>` : '';
+    return `
+      <div class="incident-item sev-${inc.severity} ${inc.acknowledged ? 'acknowledged' : ''}" id="inc-${inc.id}">
+        <div class="incident-header">
+          <span class="incident-type">${inc.type}${srcTag}</span>
+          <span class="severity-tag">${inc.severity}</span>
+        </div>
+        <div class="incident-meta">📍 ${inc.zone} Zone &nbsp;·&nbsp; 🕐 ${inc.time}</div>
+        <button class="ack-btn" onclick="acknowledgeAlert(${inc.id})">${ackLabel}</button>
+      </div>`;
+  }).join('') || `<div style="color:var(--text-dim);font-size:0.78rem;padding:10px">No incidents in selected zone.</div>`;
+}
+
+function acknowledgeAlert(id) {
+  const inc = incidents.find(i => i.id === id);
+  if(inc) {
+    inc.acknowledged = true;
+    const stored = JSON.parse(localStorage.getItem('lewa_ack') || '{}');
+    stored[id] = true;
+    localStorage.setItem('lewa_ack', JSON.stringify(stored));
+    renderIncidents();
+    toast('✔ Alert acknowledged', 'info');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER COMMUNITY
+// ═══════════════════════════════════════════════════════
+function renderCommunity() {
+  let list = [...community];
+  if(currentZone !== 'All') {
+    // zone-match loosely for community
+  }
+  document.getElementById('community-list').innerHTML = list.map(r =>
+    `<div class="report-item ${r.urgent ? 'urgent' : ''}">
+      <div class="report-msg">${r.message}${r.urgent ? '<span class="urgent-tag">🔴 URGENT</span>' : ''}</div>
+      <div class="report-meta">📍 ${r.location} &nbsp;·&nbsp; 🕐 ${r.timestamp}</div>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER RANGERS
+// ═══════════════════════════════════════════════════════
+function renderRangers() {
+  document.getElementById('ranger-list').innerHTML = SEED_RANGERS.map((r,i) =>
+    `<div class="ranger-item">
+      <div class="ranger-icon">👮</div>
+      <div class="ranger-info">
+        <div class="ranger-name">${r.name}</div>
+        <div class="ranger-meta">📍 ${r.zone} &nbsp;·&nbsp; Last contact: ${r.lastContact}</div>
+      </div>
+      <span class="ranger-status rs-${r.status}">${r.status}</span>
+      <button class="btn btn-sand btn-sm" onclick="dispatchRanger(${i})" style="margin-left:8px">📡 Dispatch</button>
+    </div>`
+  ).join('');
+
+  // Preset comms
+  document.getElementById('preset-btns').innerHTML = PRESET_COMMS.map(m =>
+    `<button class="preset-btn" onclick="sendComm('${m}')">${m}</button>`
+  ).join('');
+}
+
+function dispatchRanger(idx) {
+  const r = SEED_RANGERS[idx];
+  const msg = `📡 Alert dispatched to ${r.name} → responding to active incident`;
+  addCommLog(msg);
+  toast(`Alert sent to ${r.name}`, 'info');
+}
+
+function sendComm(msg) {
+  addCommLog(`📻 Message sent: "${msg}"`);
+  setTimeout(() => addCommLog(`✔ ${SEED_RANGERS[Math.floor(Math.random()*3)].name}: Message received`), 1200);
+}
+
+function addCommLog(msg) {
+  const log = document.getElementById('comms-log');
+  const ts  = new Date().toLocaleTimeString('en-GB');
+  const div = document.createElement('div');
+  div.className = 'comms-msg';
+  div.innerHTML = `<span class="ts">[${ts}]</span>${msg}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER DEVICES
+// ═══════════════════════════════════════════════════════
+function renderDevices() {
+  const devices = [
+    { name:"🐘 Elephant #E21 Collar", batt:72,  signal:"📶📶📶",  ts:"2m ago" },
+    { name:"🦏 Rhino #R07 Collar",    batt:34,  signal:"📶📶",     ts:"15m ago" },
+    { name:"🦁 Lion #L12 Collar",     batt:91,  signal:"📶📶📶📶", ts:"1m ago" },
+    { name:"🚁 Drone 03",             batt:droneBattery, signal:"📶📶📶", ts:"just now" },
+    { name:"📡 Sensor Node N4",       batt:null, signal:"📶",       ts:"8m ago", note:"Signal weak" }
+  ];
+  document.getElementById('device-list').innerHTML = devices.map(d => {
+    let battClass='ok', battLabel='';
+    if(d.batt !== null) {
+      battClass = d.batt < 20 ? 'low' : d.batt < 35 ? 'warn' : 'ok';
+      battLabel = `🔋 ${d.batt}% ${d.batt < 35 ? '⚠️' : ''}`;
+    } else {
+      battLabel = d.note || '';
+      battClass = 'warn';
+    }
+    return `<div class="device-item">
+      <div class="device-name">${d.name}</div>
+      <span class="signal-bars">${d.signal}</span>
+      <span class="device-batt ${battClass}">${battLabel}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER PROJECTS
+// ═══════════════════════════════════════════════════════
+function renderProjects() {
+  document.getElementById('projects-list').innerHTML = SEED_PROJECTS.map(p =>
+    `<div class="project-item">
+      <div class="project-icon">${p.icon}</div>
+      <div class="project-name">${p.name}</div>
+      <span class="project-status ps-${p.status}">${p.status}</span>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER TRAINING
+// ═══════════════════════════════════════════════════════
+function renderTraining() {
+  document.getElementById('training-list').innerHTML = TRAINING_DOCS.map((d,i) =>
+    `<div class="collapsible-item">
+      <div class="collapsible-header" id="th-${i}" onclick="toggleCollapsible(${i})">
+        <span>${d.title}</span>
+        <span class="collapsible-arrow">▾</span>
+      </div>
+      <div class="collapsible-body" id="tb-${i}">${d.body}</div>
+    </div>`
+  ).join('');
+}
+
+function toggleCollapsible(i) {
+  const header = document.getElementById(`th-${i}`);
+  const body   = document.getElementById(`tb-${i}`);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+}
+
+// ═══════════════════════════════════════════════════════
+// WEATHER
+// ═══════════════════════════════════════════════════════
+function renderWeather() {
+  document.getElementById('forecast-row').innerHTML = WEATHER_FORECASTS.map(f =>
+    `<div class="forecast-hour">
+      <span class="fh-time">${f.time}</span>
+      <span class="fh-icon">${f.icon}</span>
+      <span class="fh-temp">${f.temp}</span>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// IMPACT COUNTERS (count-up animation)
+// ═══════════════════════════════════════════════════════
+function animateImpactCounters() {
+  const items = [
+    { el: document.getElementById('cnt-1'), target: 34,    suffix:'%' },
+    { el: document.getElementById('cnt-2'), target: 62000, suffix:'+' },
+    { el: document.getElementById('cnt-3'), target: 1247,  suffix:'' },
+    { el: document.getElementById('cnt-4'), target: 24,    suffix:'' }
+  ];
+  items.forEach(item => {
+    let current = 0;
+    const step = item.target / 60;
+    const timer = setInterval(() => {
+      current = Math.min(current + step, item.target);
+      item.el.textContent = Math.floor(current).toLocaleString() + item.suffix;
+      if(current >= item.target) clearInterval(timer);
+    }, 20);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// CANVAS CHARTS
+// ═══════════════════════════════════════════════════════
+
+// Movement line chart
+function drawMovementChart() {
+  const canvas = document.getElementById('movement-chart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 300;
+  canvas.height = 120;
+  const w = canvas.width, h = canvas.height;
+
+  // Generate pseudo-data based on timeline
+  const points = 12;
+  const data = Array.from({length:points}, (_,i) => 20 + Math.sin(i*0.8)*10 + Math.random()*15);
+  const max = Math.max(...data), min = Math.min(...data);
+
+  ctx.clearRect(0,0,w,h);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(57,255,20,0.1)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<4;i++){
+    const y = (h/4)*i + 10;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+  }
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'rgba(57,255,20,0.35)');
+  grad.addColorStop(1,'rgba(57,255,20,0.02)');
+
+  const px = i => (i/(points-1))*(w-20)+10;
+  const py = v => h-10 - ((v-min)/(max-min||1))*(h-20);
+
+  ctx.beginPath();
+  ctx.moveTo(px(0),py(data[0]));
+  data.forEach((_,i) => { if(i>0) ctx.lineTo(px(i),py(data[i])); });
+  ctx.strokeStyle = '#39FF14';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#39FF14';
+  ctx.shadowBlur = 8;
+  ctx.stroke();
+
+  // Fill below
+  ctx.lineTo(px(points-1),h);
+  ctx.lineTo(px(0),h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.shadowBlur = 0;
+  ctx.fill();
+}
+
+// Incidents bar chart
+function drawIncidentsChart() {
+  const canvas = document.getElementById('incidents-chart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 300;
+  canvas.height = 120;
+  const w = canvas.width, h = canvas.height;
+
+  const zones = ['N','E','S','W','Core'];
+  const counts = zones.map(() => Math.floor(Math.random()*8)+1);
+  const max = Math.max(...counts);
+
+  ctx.clearRect(0,0,w,h);
+  const bw = (w-20)/zones.length - 4;
+
+  zones.forEach((z,i) => {
+    const x  = 10 + i*((w-20)/zones.length);
+    const bh = ((counts[i]/max)*(h-30));
+    const y  = h-bh-20;
+
+    // Bar
+    const g = ctx.createLinearGradient(0,y,0,h-20);
+    g.addColorStop(0,'rgba(57,255,20,0.8)');
+    g.addColorStop(1,'rgba(57,255,20,0.2)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.roundRect(x,y,bw,bh,3);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = 'rgba(210,180,140,0.8)';
+    ctx.font = '9px monospace';
+    ctx.fillText(z, x+bw/2-4, h-6);
+    ctx.fillStyle = 'rgba(57,255,20,0.9)';
+    ctx.fillText(counts[i], x+bw/2-4, y-4);
+  });
+}
+
+// Risk gauge
+function drawRiskChart() {
+  const canvas = document.getElementById('risk-chart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 300;
+  canvas.height = 120;
+  const w = canvas.width, h = canvas.height;
+
+  // Compute risk (0-100) from high severity incidents + time of day
+  const hour = new Date().getHours();
+  const nightRisk = (hour >= 19 || hour < 6) ? 25 : 0;
+  const incidentRisk = incidents.filter(i => i.severity==='High' && !i.acknowledged).length * 18;
+  const risk = Math.min(100, 20 + nightRisk + incidentRisk + Math.random()*10);
+
+  ctx.clearRect(0,0,w,h);
+
+  const cx = w/2, cy = h-10, r = Math.min(w,h)-30;
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx,cy,r/2,Math.PI,0);
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.stroke();
+
+  // Risk arc
+  const color = risk < 33 ? '#39FF14' : risk < 66 ? '#FFB300' : '#FF3B3B';
+  ctx.beginPath();
+  ctx.arc(cx,cy,r/2,Math.PI,Math.PI+(risk/100)*Math.PI);
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Label
+  ctx.fillStyle = color;
+  ctx.font = `bold ${Math.floor(r*0.38)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.floor(risk)}%`, cx, cy-8);
+  ctx.fillStyle = 'rgba(165,200,176,0.8)';
+  ctx.font = '9px monospace';
+  ctx.fillText('Poaching Risk', cx, cy+10);
+  const riskLabel = risk < 33 ? 'LOW' : risk < 66 ? 'MODERATE' : 'HIGH';
+  ctx.fillStyle = color;
+  ctx.font = 'bold 9px monospace';
+  ctx.fillText(riskLabel, cx, cy+22);
+}
+
+// ═══════════════════════════════════════════════════════
+// DRONE CANVAS SIMULATION
+// ═══════════════════════════════════════════════════════
+function startDroneCanvas() {
+  const canvas = document.getElementById('drone-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function drawFrame() {
+    canvas.width = canvas.offsetWidth || 300;
+    const w = canvas.width, h = canvas.height || 160;
+    ctx.clearRect(0,0,w,h);
+
+    // Background "terrain"
+    const bg = ctx.createLinearGradient(0,0,0,h);
+    bg.addColorStop(0,'rgba(5,25,15,0.9)');
+    bg.addColorStop(1,'rgba(11,61,46,0.6)');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+
+    // Grid overlay (drone HUD feel)
+    ctx.strokeStyle = 'rgba(57,255,20,0.07)';
+    ctx.lineWidth = 1;
+    for(let x=0;x<w;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
+    for(let y=0;y<h;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+
+    // Patrol path (circle)
+    droneAngle += 0.012;
+    const cx = w/2, cy = h/2;
+    const dx = cx + Math.cos(droneAngle) * droneRadius;
+    const dy = cy + Math.sin(droneAngle) * droneRadius;
+
+    // Path circle
+    ctx.beginPath();
+    ctx.arc(cx,cy,droneRadius,0,Math.PI*2);
+    ctx.strokeStyle = 'rgba(57,255,20,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Drone dot + glow
+    ctx.beginPath();
+    ctx.arc(dx,dy,6,0,Math.PI*2);
+    ctx.fillStyle = '#39FF14';
+    ctx.shadowColor = '#39FF14';
+    ctx.shadowBlur = 16;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Crosshair lines
+    ctx.strokeStyle = 'rgba(57,255,20,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(dx-14,dy); ctx.lineTo(dx+14,dy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dx,dy-14); ctx.lineTo(dx,dy+14); ctx.stroke();
+
+    // HUD text
+    ctx.fillStyle = 'rgba(57,255,20,0.7)';
+    ctx.font = '9px monospace';
+    ctx.fillText(`ALT: 42m`, 8, 14);
+    ctx.fillText(`SPD: 18km/h`, 8, 26);
+    ctx.fillText(`BATT: ${droneBattery}%`, 8, 38);
+    ctx.fillStyle = 'rgba(57,255,20,0.4)';
+    ctx.fillText(`DRONE 03 — LIVE FEED`, w/2-60, 14);
+    ctx.fillStyle = 'rgba(255,59,59,0.7)';
+    ctx.font = 'bold 9px monospace';
+    ctx.fillText('● REC', w-45, 14);
+  }
+
+  function loop() { drawFrame(); requestAnimationFrame(loop); }
+  loop();
+}
+
+// ═══════════════════════════════════════════════════════
+// REAL-TIME SIMULATION
+// ═══════════════════════════════════════════════════════
+function startSimulation() {
+  setInterval(() => {
+    // Update sensor data
+    sensorData.temp     += (Math.random()-0.5)*1.0;
+    sensorData.humidity += (Math.random()-0.5)*4;
+    sensorData.humidity  = Math.max(20, Math.min(99, sensorData.humidity));
+    sensorData.temp      = Math.max(15, Math.min(45, sensorData.temp));
+    sensorData.gps       = Math.max(80, Math.min(100, sensorData.gps + (Math.random()-0.5)*2));
+
+    const movOptions = ['All clear','Movement in North Zone','Movement in East Zone','All clear','All clear'];
+    sensorData.movement = movOptions[Math.floor(Math.random()*movOptions.length)];
+
+    // Show spinner briefly
+    const spin = document.getElementById('spin-icon');
+    spin.style.display='inline';
+    setTimeout(() => spin.style.display='none', 600);
+
+    // Update sensor display with flash
+    renderSensors();
+    ['s-temp','s-hum','s-gps','s-mov'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) { el.classList.add('updating'); setTimeout(()=>el.classList.remove('updating'),400); }
+    });
+
+    // Drone battery
+    droneBattery = Math.max(0, droneBattery - 0.3);
+    droneFlightTime = Math.max(0, droneFlightTime - 0.1);
+    document.getElementById('drone-batt').textContent = droneBattery.toFixed(0)+'%';
+    document.getElementById('drone-flight').textContent = droneFlightTime.toFixed(0)+' min';
+
+    // Update weather temp display
+    document.getElementById('weather-temp').textContent = `${sensorData.temp.toFixed(1)}°C ⛅`;
+
+    // Randomly update one animal status (10% chance)
+    if(Math.random() < 0.1) {
+      const a = animals[Math.floor(Math.random()*animals.length)];
+      const statuses = ['Safe','Moving','Alert'];
+      const newStatus = statuses[Math.floor(Math.random()*statuses.length)];
+      if(newStatus !== a.status) {
+        a.status = newStatus;
+        renderWildlife();
+      }
+    }
+
+    // Random battery drain on collars
+    animals.forEach(a => { a.battery = Math.max(1, a.battery - Math.random()*0.5); });
+    renderDevices();
+
+    // Randomly generate low-severity alert (20% chance)
+    if(Math.random() < 0.2) generateRandomAlert();
+
+    syncCounter = 0;
+    drawRiskChart();
+
+  }, 7000);
+
+  // Generate random alert every 20-30s
+  setInterval(() => {
+    if(Math.random() < 0.5) generateRandomAlert();
+  }, 25000);
+}
+
+function generateRandomAlert() {
+  const types = ["Fence Breach","Community Report","Unusual Movement","Water Level Alert","Vehicle Spotted"];
+  const zones  = ["North","East","South","West","Core"];
+  const sev    = ["Low","Low","Low","Medium"]; // mostly low
+  const inc = {
+    id: ++incidentIdCounter,
+    type: types[Math.floor(Math.random()*types.length)],
+    zone: zones[Math.floor(Math.random()*zones.length)],
+    severity: sev[Math.floor(Math.random()*sev.length)],
+    time: "just now",
+    acknowledged: false,
+    source: "System"
+  };
+  incidents.unshift(inc);
+  if(incidents.length > 20) incidents.pop();
+  renderIncidents();
+  toast(`🔔 New alert: ${inc.type} — ${inc.zone} Zone`, inc.severity === 'High' ? 'alert' : 'warn');
+}
+
+// ═══════════════════════════════════════════════════════
+// ZONE FILTER
+// ═══════════════════════════════════════════════════════
+function setZone(zone, btn) {
+  currentZone = zone;
+  document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderWildlife();
+  renderIncidents();
+  renderCommunity();
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEW TOGGLE
+// ═══════════════════════════════════════════════════════
+function setView(v) {
+  currentView = v;
+  localStorage.setItem('lewa_view', v);
+  const cardEl = document.getElementById('card-view');
+  const mapEl  = document.getElementById('map-view');
+  const cardBtn= document.getElementById('card-view-btn');
+  const mapBtn = document.getElementById('map-view-btn');
+  if(v === 'map') {
+    cardEl.style.display='none'; mapEl.style.display='block';
+    mapBtn.classList.add('active'); cardBtn.classList.remove('active');
+  } else {
+    cardEl.style.display='block'; mapEl.style.display='none';
+    cardBtn.classList.add('active'); mapBtn.classList.remove('active');
+  }
+  renderWildlife();
+}
+
+// ═══════════════════════════════════════════════════════
+// TIMELINE SLIDER
+// ═══════════════════════════════════════════════════════
+function updateTimeline(val) {
+  currentTimeline = parseInt(val);
+  document.getElementById('timeline-label').textContent = TIMELINE_LABELS[currentTimeline];
+  // Regenerate charts for different time ranges
+  drawMovementChart();
+  drawIncidentsChart();
+  drawRiskChart();
+  toast(`📅 Showing: ${TIMELINE_LABELS[currentTimeline]}`, 'info');
+}
+
+// ═══════════════════════════════════════════════════════
+// COMMUNITY REPORT FORM
+// ═══════════════════════════════════════════════════════
+function openReportForm() {
+  document.getElementById('report-form').style.display = 'block';
+}
+
+function submitReport() {
+  const what   = document.getElementById('rep-what').value.trim();
+  const where  = document.getElementById('rep-where').value.trim();
+  const urg    = document.getElementById('rep-urgency').value;
+
+  if(!what || !where) { toast('⚠️ Please fill in all fields', 'warn'); return; }
+
+  // Add to community feed
+  community.unshift({ id:++communityIdCounter, message:what, location:where, timestamp:'just now', urgent:urg==='High' });
+  renderCommunity();
+
+  // Also add to incidents
+  incidents.unshift({
+    id:++incidentIdCounter, type:what, zone:where, severity:urg,
+    time:'just now', acknowledged:false, source:'Community'
+  });
+  renderIncidents();
+
+  // Store in localStorage
+  const stored = JSON.parse(localStorage.getItem('lewa_community') || '[]');
+  stored.unshift({ what, where, urg, ts: new Date().toISOString() });
+  localStorage.setItem('lewa_community', JSON.stringify(stored.slice(0,50)));
+
+  document.getElementById('rep-what').value = '';
+  document.getElementById('rep-where').value = '';
+  document.getElementById('report-form').style.display = 'none';
+  toast('✅ Incident reported successfully', 'info');
+  playBeep(urg === 'High');
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════
+function openAnalyticsModal() {
+  const total = incidents.length;
+  const high  = incidents.filter(i => i.severity==='High').length;
+  const acked = incidents.filter(i => i.acknowledged).length;
+  const zones = ['North','East','South','West','Core'];
+  const zoneBreak = zones.map(z => `${z}: ${incidents.filter(i=>i.zone===z).length}`).join(' | ');
+
+  document.getElementById('modal-content').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:0.75rem">
+      <tr><td style="padding:6px 0;color:var(--text-dim);border-bottom:1px solid var(--card-border)">Total Incidents (session)</td><td style="color:var(--neon)">${total}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--text-dim);border-bottom:1px solid var(--card-border)">High Severity</td><td style="color:var(--alert)">${high}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--text-dim);border-bottom:1px solid var(--card-border)">Acknowledged</td><td style="color:var(--neon)">${acked}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--text-dim);border-bottom:1px solid var(--card-border)">Animals Tracked</td><td style="color:var(--neon)">${animals.length}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--text-dim);border-bottom:1px solid var(--card-border)">Alert Animals</td><td style="color:var(--alert)">${animals.filter(a=>a.status==='Alert').length}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--text-dim);border-bottom:1px solid var(--card-border)">Incidents by Zone</td><td style="color:var(--sand);font-size:0.65rem">${zoneBreak}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--text-dim)">Drone Battery</td><td style="color:var(--warn)">${droneBattery.toFixed(0)}%</td></tr>
+    </table>
+    <div style="margin-top:14px;color:var(--text-dim);font-size:0.68rem;line-height:1.8">
+      Report generated: ${new Date().toLocaleString()}<br>
+      Dashboard: Lewa Smart Conservation Dashboard v1.0<br>
+      Status: Simulation Mode (Real data integration pending)<br>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ═══════════════════════════════════════════════════════
+// SYSTEM FOOTER
+// ═══════════════════════════════════════════════════════
+function toggleSysFooter() {
+  const body  = document.getElementById('sys-footer-body');
+  const arrow = document.getElementById('sys-arrow');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  arrow.textContent = isOpen ? '▲' : '▼';
+}
+
+function triggerTestAlert() {
+  toast('🧪 Test alert triggered — System OK', 'info');
+  generateRandomAlert();
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════════════════════════
+function exportReport() {
+  const rows = [['Animal','Status','Zone','Battery','Last TX']];
+  animals.forEach(a => rows.push([a.name, a.status, a.zone, a.battery+'%', a.lastTx]));
+  const csv  = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'lewa_wildlife_report.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('📥 CSV report downloaded', 'info');
+}
+
+// ═══════════════════════════════════════════════════════
+// THEME TOGGLE
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  document.getElementById('theme-toggle').textContent = isLight ? '🌑 Dark/Light' : '🌙 Dark/Light';
+  localStorage.setItem('lewa_theme', isLight ? 'light' : 'dark');
+}
+// Restore theme
+if(localStorage.getItem('lewa_theme') === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('theme-toggle').textContent = '🌑 Dark/Light';
+}
+
+// ═══════════════════════════════════════════════════════
+// SOUND TOGGLE
+// ═══════════════════════════════════════════════════════
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  document.getElementById('sound-toggle').textContent = soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+}
+
+function playBeep(loud=false) {
+  if(!soundEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.value = loud ? 880 : 440;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(); osc.stop(ctx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+function toast(msg, type='info') {
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => t.remove(), 4200);
+  if(type === 'alert') playBeep(true);
+}
+
+// ═══════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════
+function handleKeyboard(e) {
+  // Shift+A → Admin Mode
+  if(e.shiftKey && e.key === 'A') {
+    adminMode = !adminMode;
+    document.getElementById('admin-panel').classList.toggle('visible', adminMode);
+    toast(adminMode ? '🔐 Admin Override Mode ON' : '🔒 Admin Mode OFF', 'warn');
+    return;
+  }
+  // a → acknowledge oldest unacked
+  if(e.key === 'a' && !e.shiftKey) {
+    const oldest = incidents.find(i => !i.acknowledged);
+    if(oldest) { acknowledgeAlert(oldest.id); }
+  }
+  // m → toggle map view
+  if(e.key === 'm') {
+    setView(currentView === 'map' ? 'card' : 'map');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ADMIN FUNCTIONS
+// ═══════════════════════════════════════════════════════
+function adminSimulatePoaching() {
+  const inc = {
+    id: ++incidentIdCounter,
+    type: "⚠️ POACHING ALERT — Armed Suspects",
+    zone: ['North','East'][Math.floor(Math.random()*2)],
+    severity: "High",
+    time: "just now",
+    acknowledged: false,
+    source: "System"
+  };
+  incidents.unshift(inc);
+  renderIncidents();
+  toast('🔴 POACHING ALERT SIMULATED — High Severity', 'alert');
+  playBeep(true);
+}
+
+function adminSimulateSensorFail() {
+  sensorFailureActive = true;
+  renderSensors();
+  toast('📡 Sensor Node offline — Temperature unavailable', 'warn');
+  setTimeout(() => {
+    sensorFailureActive = false;
+    renderSensors();
+    toast('✅ Sensor back online', 'info');
+  }, 8000);
+}
+
+function adminResetData() {
+  animals   = JSON.parse(JSON.stringify(SEED_ANIMALS));
+  incidents = JSON.parse(JSON.stringify(SEED_INCIDENTS));
+  community = JSON.parse(JSON.stringify(SEED_COMMUNITY));
+  droneBattery  = 67;
+  droneFlightTime = 15;
+  incidentIdCounter = 10;
+  communityIdCounter = 10;
+  localStorage.removeItem('lewa_ack');
+  renderWildlife();
+  renderIncidents();
+  renderCommunity();
+  renderDevices();
+  animateImpactCounters();
+  toast('🔄 All data reset to seed values', 'info');
+}
+
+// ═══════════════════════════════════════════════════════
+// REDRAW CHARTS ON RESIZE
+// ═══════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  drawMovementChart();
+  drawIncidentsChart();
+  drawRiskChart();
+});
+</script>
+</body>
+</html>
